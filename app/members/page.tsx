@@ -1,6 +1,44 @@
 import { Sidebar } from "@/components/Sidebar";
 
 export default function MembersPage() {
+  const mockMembers = [
+    {
+      id: "m_001",
+      name: "Rahul Sharma",
+      plan: "Annual",
+      status: "Active",
+      joinDate: "2026-01-18",
+    },
+    {
+      id: "m_002",
+      name: "Neha Verma",
+      plan: "Monthly",
+      status: "Active",
+      joinDate: "2026-03-02",
+    },
+    {
+      id: "m_003",
+      name: "Arjun Mehta",
+      plan: "Quarterly",
+      status: "Pending",
+      joinDate: "2026-04-05",
+    },
+    {
+      id: "m_004",
+      name: "Priya Nair",
+      plan: "Monthly",
+      status: "Expired",
+      joinDate: "2025-11-21",
+    },
+    {
+      id: "m_005",
+      name: "Sanya Kapoor",
+      plan: "Annual",
+      status: "Active",
+      joinDate: "2026-02-10",
+    },
+  ] as const;
+
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
       <Sidebar />
@@ -28,11 +66,38 @@ export default function MembersPage() {
                 </tr>
               </thead>
               <tbody className="text-zinc-200">
-                <tr className="border-t border-zinc-800 [&>td]:px-4 [&>td]:py-3">
-                  <td className="text-zinc-400" colSpan={3}>
-                    No members yet
-                  </td>
-                </tr>
+                {mockMembers.map((m) => {
+                  const statusClass =
+                    m.status === "Active"
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : m.status === "Expired"
+                        ? "bg-red-500/10 text-red-400"
+                        : "bg-yellow-500/10 text-yellow-400";
+
+                  return (
+                    <tr
+                      key={m.id}
+                      className="border-t border-zinc-800 [&>td]:px-4 [&>td]:py-3"
+                    >
+                      <td className="font-medium text-zinc-100">
+                        <div className="flex flex-col">
+                          <span>{m.name}</span>
+                          <span className="mt-0.5 text-xs text-zinc-500">
+                            Joined {m.joinDate}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="text-zinc-300">{m.plan}</td>
+                      <td>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusClass}`}
+                        >
+                          {m.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
