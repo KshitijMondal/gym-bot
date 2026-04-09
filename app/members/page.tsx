@@ -1,65 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
-import { Plus, Search, X } from "lucide-react";
+import { AlertTriangle, Edit, Plus, Search, Trash2, X } from "lucide-react";
 
 export default function MembersPage() {
   type MemberStatus = "Active" | "Expired" | "Pending";
   type Member = {
-    id: string;
+    _id: string;
     name: string;
     plan: string;
     status: MemberStatus;
     joinDate: string;
   };
 
-  const initialMockMembers: Member[] = [
-    {
-      id: "m_001",
-      name: "Rahul Sharma",
-      plan: "Annual",
-      status: "Active",
-      joinDate: "2026-01-18",
-    },
-    {
-      id: "m_002",
-      name: "Neha Verma",
-      plan: "Monthly",
-      status: "Active",
-      joinDate: "2026-03-02",
-    },
-    {
-      id: "m_003",
-      name: "Arjun Mehta",
-      plan: "Quarterly",
-      status: "Pending",
-      joinDate: "2026-04-05",
-    },
-    {
-      id: "m_004",
-      name: "Priya Nair",
-      plan: "Monthly",
-      status: "Expired",
-      joinDate: "2025-11-21",
-    },
-    {
-      id: "m_005",
-      name: "Sanya Kapoor",
-      plan: "Annual",
-      status: "Active",
-      joinDate: "2026-02-10",
-    },
-  ];
-
-  const [members, setMembers] = useState<Member[]>(initialMockMembers);
+  const [members, setMembers] = useState<Member[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
+  const [formData, setFormData] = useState<{
+    name: string;
+    plan: string;
+    status: MemberStatus;
+  }>({ name: "", plan: "Monthly", status: "Active" });
 
-  const [newMemberName, setNewMemberName] = useState("");
-  const [newMemberPlan, setNewMemberPlan] = useState("Monthly");
-  const [newMemberStatus, setNewMemberStatus] =
-    useState<MemberStatus>("Active");
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingId(null);
+    setFormData({ name: "", plan: "Monthly", status: "Active" });
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch("/api/members", { method: "GET" });
+        if (!res.ok) throw new Error("Failed to fetch members");
+
+        const data = (await res.json()) as Member[];
+        if (isMounted) setMembers(Array.isArray(data) ? data : []);
+      } catch {
+        if (isMounted) setMembers([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredMembers = members.filter((m) =>
     m.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
@@ -99,7 +93,11 @@ export default function MembersPage() {
 
               <button
                 type="button"
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                  setEditingId(null);
+                  setFormData({ name: "", plan: "Monthly", status: "Active" });
+                  setIsModalOpen(true);
+                }}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/30 hover:bg-emerald-500/15"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
@@ -115,10 +113,20 @@ export default function MembersPage() {
                   <th scope="col">Name</th>
                   <th scope="col">Plan</th>
                   <th scope="col">Status</th>
+                  <th scope="col" className="text-right">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="text-zinc-200">
-                {filteredMembers.map((m) => {
+                {isLoading ? (
+                  <tr className="border-t border-zinc-800 [&>td]:px-4 [&>td]:py-8">
+                    <td className="text-center text-sm text-zinc-400" colSpan={4}>
+                      Loading members...
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMembers.map((m) => {
                   const statusClass =
                     m.status === "Active"
                       ? "bg-emerald-500/10 text-emerald-400"
@@ -128,7 +136,7 @@ export default function MembersPage() {
 
                   return (
                     <tr
-                      key={m.id}
+                      key={m._id}
                       className="border-t border-zinc-800 [&>td]:px-4 [&>td]:py-3"
                     >
                       <td className="font-medium text-zinc-100">
@@ -147,9 +155,38 @@ export default function MembersPage() {
                           {m.status}
                         </span>
                       </td>
+                      <td className="text-right">
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(m._id);
+                              setFormData({
+                                name: m.name,
+                                plan: m.plan,
+                                status: m.status,
+                              });
+                              setIsModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-300 ring-1 ring-inset ring-blue-500/30 hover:bg-blue-500/15"
+                          >
+                            <Edit className="h-3.5 w-3.5" aria-hidden="true" />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMemberToDelete(m._id)}
+                            className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-1 text-xs font-medium text-red-300 ring-1 ring-inset ring-red-500/30 hover:bg-red-500/15"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
-                })}
+                })
+                )}
               </tbody>
             </table>
           </div>
@@ -163,15 +200,17 @@ export default function MembersPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold text-white">
-                  Add Member
+                  {editingId ? "Edit Member" : "Add Member"}
                 </h2>
                 <p className="mt-0.5 text-sm text-zinc-500">
-                  Create a new member profile
+                  {editingId
+                    ? "Update member details"
+                    : "Create a new member profile"}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={closeModal}
                 className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
                 aria-label="Close"
               >
@@ -181,24 +220,33 @@ export default function MembersPage() {
 
             <form
               className="mt-5 space-y-4"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                const name = newMemberName.trim();
+                const name = formData.name.trim();
                 if (!name) return;
 
-                const newMember = {
-                  id: `m_${Math.random().toString(16).slice(2, 8)}`,
-                  name,
-                  plan: newMemberPlan,
-                  status: newMemberStatus,
-                  joinDate: new Date().toISOString().slice(0, 10),
-                };
+                const res = await fetch(
+                  editingId ? `/api/members/${editingId}` : "/api/members",
+                  {
+                    method: editingId ? "PUT" : "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      name,
+                      plan: formData.plan,
+                      status: formData.status,
+                    }),
+                  }
+                );
 
-                setMembers((prev) => [...prev, newMember]);
-                setIsModalOpen(false);
-                setNewMemberName("");
-                setNewMemberPlan("Monthly");
-                setNewMemberStatus("Active");
+                if (!res.ok) return;
+
+                const saved = (await res.json()) as Member;
+                setMembers((prev) =>
+                  editingId
+                    ? prev.map((m) => (m._id === saved._id ? saved : m))
+                    : [...prev, saved]
+                );
+                closeModal();
               }}
             >
               <div>
@@ -206,8 +254,10 @@ export default function MembersPage() {
                   Name
                 </label>
                 <input
-                  value={newMemberName}
-                  onChange={(e) => setNewMemberName(e.target.value)}
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
                   placeholder="e.g., Rohan Singh"
                   className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-zinc-700 focus:ring-2 focus:ring-zinc-700/40"
                 />
@@ -219,8 +269,10 @@ export default function MembersPage() {
                     Plan
                   </label>
                   <select
-                    value={newMemberPlan}
-                    onChange={(e) => setNewMemberPlan(e.target.value)}
+                    value={formData.plan}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, plan: e.target.value }))
+                    }
                     className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-700 focus:ring-2 focus:ring-zinc-700/40"
                   >
                     <option value="Monthly">Monthly</option>
@@ -234,8 +286,13 @@ export default function MembersPage() {
                     Status
                   </label>
                   <select
-                    value={newMemberStatus}
-                    onChange={(e) => setNewMemberStatus(e.target.value as MemberStatus)}
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        status: e.target.value as MemberStatus,
+                      }))
+                    }
                     className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-700 focus:ring-2 focus:ring-zinc-700/40"
                   >
                     <option value="Active">Active</option>
@@ -248,7 +305,7 @@ export default function MembersPage() {
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={closeModal}
                   className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800/60"
                 >
                   Cancel
@@ -261,6 +318,57 @@ export default function MembersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Delete confirmation */}
+      {memberToDelete ? (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm">
+          <div className="flex h-full items-center justify-center p-4">
+            <div className="w-full max-w-sm rounded-xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 rounded-lg bg-red-500/10 p-2 text-red-400">
+                  <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-white">
+                    Delete Member
+                  </h3>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    Are you sure? This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMemberToDelete(null)}
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800/60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const id = memberToDelete;
+                    if (!id) return;
+
+                    const res = await fetch(`/api/members/${id}`, {
+                      method: "DELETE",
+                    });
+                    if (!res.ok) return;
+
+                    setMembers((prev) => prev.filter((m) => m._id !== id));
+                    setMemberToDelete(null);
+                  }}
+                  className="rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-red-400"
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
