@@ -1,12 +1,95 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Activity, CreditCard, TrendingUp, Users } from "lucide-react";
 
+type MemberStatus = "Active" | "Expired" | "Pending";
+type MemberPlan = "Monthly" | "Quarterly" | "Annual";
+
+type Member = {
+  _id: string;
+  name: string;
+  plan: string;
+  status: MemberStatus;
+  joinDate: string;
+};
+
+const pricing = { Monthly: 1500, Quarterly: 4000, Annual: 12000 } as const;
+
 export default function Home() {
+  const [members, setMembers] = useState<Member[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch("/api/members", { method: "GET" });
+        if (!res.ok) throw new Error("Failed to fetch members");
+
+        const data = (await res.json()) as Member[];
+        if (isMounted) setMembers(Array.isArray(data) ? data : []);
+      } catch {
+        if (isMounted) setMembers([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const formatINR = (amount: number) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(amount);
+
+  const getAmountFromPlan = (plan: string) =>
+    pricing[(plan as MemberPlan) ?? "Monthly"] ?? 0;
+
+  const { totalMembers, activeMembers, monthlyRevenue } = useMemo(() => {
+    return members.reduce(
+      (acc, member) => {
+        if (member.status === "Active") {
+          acc.activeMembers += 1;
+          acc.monthlyRevenue += getAmountFromPlan(member.plan);
+        }
+        return acc;
+      },
+      {
+        totalMembers: members.length,
+        activeMembers: 0,
+        monthlyRevenue: 0,
+      }
+    );
+  }, [members]);
+
+  const recentMembers = useMemo(() => {
+    return [...members]
+      .sort(
+        (a, b) =>
+          new Date(b.joinDate).getTime() - new Date(a.joinDate).getTime()
+      )
+      .slice(0, 5);
+  }, [members]);
+
+  const getStatusBadgeClass = (status: MemberStatus) => {
+    if (status === "Active") return "bg-emerald-500/10 text-emerald-400";
+    if (status === "Pending") return "bg-yellow-500/10 text-yellow-400";
+    return "bg-red-500/10 text-red-400";
+  };
+
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
       <Sidebar />
 
-      {/* Main workspace */}
       <main className="min-w-0 flex-1 overflow-auto">
         <header className="border-b border-zinc-800 bg-zinc-950/80 px-6 py-4 backdrop-blur-sm">
           <h1 className="text-lg font-semibold text-white">Dashboard</h1>
@@ -16,7 +99,6 @@ export default function Home() {
         </header>
 
         <div className="p-6">
-          {/* Metrics */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
               <div className="flex items-center gap-4">
@@ -27,8 +109,9 @@ export default function Home() {
                   <p className="text-sm font-medium text-zinc-300">
                     Total Members
                   </p>
-                  <p className="mt-1 text-2xl font-semibold text-white">248</p>
-                  <p className="mt-1 text-xs text-zinc-500">+12 this month</p>
+                  <p className="mt-1 text-2xl font-semibold text-white">
+                    {isLoading ? "..." : totalMembers}
+                  </p>
                 </div>
               </div>
             </div>
@@ -40,10 +123,11 @@ export default function Home() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-zinc-300">
-                    Active Subscriptions
+                    Active Members
                   </p>
-                  <p className="mt-1 text-2xl font-semibold text-white">193</p>
-                  <p className="mt-1 text-xs text-zinc-500">78% of total</p>
+                  <p className="mt-1 text-2xl font-semibold text-white">
+                    {isLoading ? "..." : activeMembers}
+                  </p>
                 </div>
               </div>
             </div>
@@ -58,17 +142,13 @@ export default function Home() {
                     Monthly Revenue
                   </p>
                   <p className="mt-1 text-2xl font-semibold text-white">
-                    ₹1,42,800
-                  </p>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    +9.4% vs last month
+                    {isLoading ? "..." : formatINR(monthlyRevenue)}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Recent activity */}
           <section className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/40">
             <div className="border-b border-zinc-800 px-5 py-4">
               <div className="flex items-center gap-2">
@@ -78,70 +158,33 @@ export default function Home() {
                 </h2>
               </div>
               <p className="mt-0.5 text-xs text-zinc-500">
-                Latest member and payment updates
+                5 most recently joined members
               </p>
             </div>
             <ul className="divide-y divide-zinc-800">
-              <li className="px-5 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm text-zinc-200">
-                      Rahul joined the gym
-                    </p>
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      Today • 10:12 AM
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400">
-                    Update
-                  </span>
-                </div>
-              </li>
-              <li className="px-5 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm text-zinc-200">
-                      Payment received from Neha (₹1,999)
-                    </p>
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      Today • 9:05 AM
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
-                    Payment
-                  </span>
-                </div>
-              </li>
-              <li className="px-5 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm text-zinc-200">
-                      Plan renewed for Arjun (3 months)
-                    </p>
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      Yesterday • 7:40 PM
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-400">
-                    Renewal
-                  </span>
-                </div>
-              </li>
-              <li className="px-5 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm text-zinc-200">
-                      Subscription expired for Priya
-                    </p>
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      Yesterday • 3:18 PM
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-zinc-700/50 px-2 py-0.5 text-xs font-medium text-zinc-300">
-                    Alert
-                  </span>
-                </div>
-              </li>
+              {isLoading ? (
+                <li className="px-5 py-4 text-sm text-zinc-400">Loading members...</li>
+              ) : recentMembers.length === 0 ? (
+                <li className="px-5 py-4 text-sm text-zinc-400">No recent activity.</li>
+              ) : (
+                recentMembers.map((member) => (
+                  <li key={member._id} className="px-5 py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm text-zinc-200">{member.name}</p>
+                        <p className="mt-0.5 text-xs text-zinc-500">
+                          {member.plan} plan
+                        </p>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadgeClass(member.status)}`}
+                      >
+                        {member.status}
+                      </span>
+                    </div>
+                  </li>
+                ))
+              )}
             </ul>
           </section>
         </div>
