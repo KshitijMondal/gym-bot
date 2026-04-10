@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
-import { AlertCircle, CheckCircle, IndianRupee } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  Download,
+  IndianRupee,
+} from "lucide-react";
 
 type MemberStatus = "Active" | "Expired" | "Pending";
 type MemberPlan = "Monthly" | "Quarterly" | "Annual";
@@ -12,6 +17,7 @@ type Member = {
   name: string;
   plan: string;
   status: MemberStatus;
+  joinDate: string;
 };
 
 const pricing = { Monthly: 1500, Quarterly: 4000, Annual: 12000 } as const;
@@ -52,6 +58,39 @@ export default function PaymentsPage() {
 
   const getAmountFromPlan = (plan: string) =>
     pricing[(plan as MemberPlan) ?? "Monthly"] ?? 0;
+
+  const handleExportCSV = () => {
+    const escapeCell = (value: string | number) => {
+      const s = String(value);
+      if (/[",\n\r]/.test(s)) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+
+    const header = "Name,Plan,Status,Amount Due (INR),Join Date";
+    const rows = members.map((m) => {
+      const amountDue =
+        m.status === "Expired" ? 0 : getAmountFromPlan(m.plan);
+      return [
+        escapeCell(m.name),
+        escapeCell(m.plan),
+        escapeCell(m.status),
+        escapeCell(amountDue),
+        escapeCell(m.joinDate ?? ""),
+      ].join(",");
+    });
+    const csvContent = [header, ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "gym-revenue-report.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const { totalRevenue, pendingPayments, activePaidMembers } = useMemo(() => {
     return members.reduce(
@@ -137,9 +176,19 @@ export default function PaymentsPage() {
 
           <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
             <div className="border-b border-zinc-800 px-4 py-3">
-              <h2 className="text-sm font-semibold text-zinc-100">
-                Payment Status
-              </h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold text-zinc-100">
+                  Payment Status
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/35 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
+                >
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                  Export Report
+                </button>
+              </div>
             </div>
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-zinc-900/60 text-zinc-300">

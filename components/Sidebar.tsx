@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UserButton } from "@clerk/nextjs";
 
 export function Sidebar() {
   return (
@@ -38,6 +39,16 @@ export function Sidebar() {
           Settings
         </Link>
       </nav>
+
+      <div className="mt-auto border-t border-zinc-800 p-3">
+        <div className="flex items-center justify-center rounded-md px-2 py-2">
+          <UserButton
+            appearance={{
+              elements: { userButtonAvatarBox: "w-8 h-8" },
+            }}
+          />
+        </div>
+      </div>
     </aside>
   );
 }
