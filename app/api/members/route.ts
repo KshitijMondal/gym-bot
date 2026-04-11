@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/mongodb";
 import Member from "@/models/Member";
 
 export async function GET() {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
     await dbConnect();
     // .lean() strips heavy Mongoose features for faster data transfer
-    const members = await Member.find({}).sort({ createdAt: -1 }).lean();
+    const members = await Member.find({ userId }).sort({ createdAt: -1 }).lean();
     return NextResponse.json(members, { status: 200 });
   } catch (err) {
     console.error("GET /api/members error:", err);
@@ -19,21 +25,31 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
     await dbConnect();
     const body = await request.json();
 
     const name = body.name?.trim();
+    const countryCode = body.countryCode?.trim() || "+91";
+    const phone = body.phone?.trim();
     const plan = body.plan?.trim();
 
-    if (!name || !plan) {
+    if (!name || !phone || !plan) {
       return NextResponse.json(
-        { error: "Name and plan are required." },
+        { error: "Name, phone, and plan are required." },
         { status: 400 }
       );
     }
 
     const created = await Member.create({
+      userId,
       name,
+      countryCode,
+      phone,
       plan,
       status: body.status?.trim() || "Active",
       joinDate: body.joinDate?.trim(),

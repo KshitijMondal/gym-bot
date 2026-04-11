@@ -2,34 +2,85 @@
 
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
-import { AlertTriangle, Edit, Plus, Search, Trash2, X } from "lucide-react";
+import { AlertTriangle, Edit, Plus, Search, Trash2, X, MessageCircle, Loader2 } from "lucide-react";
+import { sendWhatsAppMessage, generateReceiptText, generateReminderText } from "@/lib/whatsapp";
 
 export default function MembersPage() {
   type MemberStatus = "Active" | "Expired" | "Pending";
   type Member = {
     _id: string;
     name: string;
+    countryCode: string;
+    phone: string;
     plan: string;
     status: MemberStatus;
     joinDate: string;
   };
 
+  const COUNTRY_CODES = [
+    { code: "+61", country: "Australia" },
+    { code: "+973", country: "Bahrain" },
+    { code: "+880", country: "Bangladesh" },
+    { code: "+32", country: "Belgium" },
+    { code: "+55", country: "Brazil" },
+    { code: "+1", country: "Canada" },
+    { code: "+86", country: "China" },
+    { code: "+20", country: "Egypt" },
+    { code: "+33", country: "France" },
+    { code: "+49", country: "Germany" },
+    { code: "+91", country: "India" },
+    { code: "+62", country: "Indonesia" },
+    { code: "+353", country: "Ireland" },
+    { code: "+39", country: "Italy" },
+    { code: "+81", country: "Japan" },
+    { code: "+965", country: "Kuwait" },
+    { code: "+60", country: "Malaysia" },
+    { code: "+52", country: "Mexico" },
+    { code: "+31", country: "Netherlands" },
+    { code: "+64", country: "New Zealand" },
+    { code: "+974", country: "Qatar" },
+    { code: "+966", country: "Saudi Arabia" },
+    { code: "+65", country: "Singapore" },
+    { code: "+27", country: "South Africa" },
+    { code: "+82", country: "South Korea" },
+    { code: "+34", country: "Spain" },
+    { code: "+971", country: "UAE" },
+    { code: "+44", country: "UK" },
+    { code: "+1", country: "US" },
+  ];
+
   const [members, setMembers] = useState<Member[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState<{
     name: string;
+    countryCode: string;
+    phone: string;
     plan: string;
     status: MemberStatus;
-  }>({ name: "", plan: "Monthly", status: "Active" });
+  }>({
+    name: "",
+    countryCode: "+91",
+    phone: "",
+    plan: "Monthly",
+    status: "Active",
+  });
 
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
-    setFormData({ name: "", plan: "Monthly", status: "Active" });
+    setFormData({
+      name: "",
+      countryCode: "+91",
+      phone: "",
+      plan: "Monthly",
+      status: "Active",
+    });
   };
 
   useEffect(() => {
@@ -95,7 +146,13 @@ export default function MembersPage() {
                 type="button"
                 onClick={() => {
                   setEditingId(null);
-                  setFormData({ name: "", plan: "Monthly", status: "Active" });
+                  setFormData({
+                    name: "",
+                    countryCode: "+91",
+                    phone: "",
+                    plan: "Monthly",
+                    status: "Active",
+                  });
                   setIsModalOpen(true);
                 }}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/30 hover:bg-emerald-500/15"
@@ -111,6 +168,7 @@ export default function MembersPage() {
               <thead className="bg-zinc-900/60 text-zinc-300">
                 <tr className="[&>th]:px-4 [&>th]:py-3 [&>th]:font-medium">
                   <th scope="col">Name</th>
+                  <th scope="col">Phone</th>
                   <th scope="col">Plan</th>
                   <th scope="col">Status</th>
                   <th scope="col" className="text-right">
@@ -121,7 +179,7 @@ export default function MembersPage() {
               <tbody className="text-zinc-200">
                 {isLoading ? (
                   <tr className="border-t border-zinc-800 [&>td]:px-4 [&>td]:py-8">
-                    <td className="text-center text-sm text-zinc-400" colSpan={4}>
+                    <td className="text-center text-sm text-zinc-400" colSpan={5}>
                       Loading members...
                     </td>
                   </tr>
@@ -147,6 +205,7 @@ export default function MembersPage() {
                           </span>
                         </div>
                       </td>
+                      <td className="text-zinc-300">{m.countryCode} {m.phone}</td>
                       <td className="text-zinc-300">{m.plan}</td>
                       <td>
                         <span
@@ -157,14 +216,33 @@ export default function MembersPage() {
                       </td>
                       <td className="text-right">
                         <div className="inline-flex items-center gap-2">
+                          
+                          {/* NEW WHATSAPP BUTTON */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const message = m.status === "Active" 
+                                ? generateReceiptText("Titan Fitness", m.name, m.plan) 
+                                : generateReminderText("Titan Fitness", m.name);
+                                
+                              sendWhatsAppMessage(`${m.countryCode || "+91"}${m.phone}`, message);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/30 hover:bg-emerald-500/20"
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                            WhatsApp
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => {
                               setEditingId(m._id);
                               setFormData({
-                                name: m.name,
-                                plan: m.plan,
-                                status: m.status,
+                                name: m.name || "",
+                                countryCode: m.countryCode || "+91",
+                                phone: m.phone || "",
+                                plan: m.plan || "Monthly",
+                                status: (m.status || "Active") as MemberStatus,
                               });
                               setIsModalOpen(true);
                             }}
@@ -173,6 +251,7 @@ export default function MembersPage() {
                             <Edit className="h-3.5 w-3.5" aria-hidden="true" />
                             Edit
                           </button>
+                          
                           <button
                             type="button"
                             onClick={() => setMemberToDelete(m._id)}
@@ -223,30 +302,45 @@ export default function MembersPage() {
               onSubmit={async (e) => {
                 e.preventDefault();
                 const name = formData.name.trim();
-                if (!name) return;
+                const phone = formData.phone.trim();
+                if (!name) {
+                  alert("Name is required");
+                  return;
+                }
+                if (!/^\d{10}$/.test(phone)) {
+                  alert("Phone number must be exactly 10 digits (0-9 only).");
+                  return;
+                }
 
-                const res = await fetch(
-                  editingId ? `/api/members/${editingId}` : "/api/members",
-                  {
-                    method: editingId ? "PUT" : "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      name,
-                      plan: formData.plan,
-                      status: formData.status,
-                    }),
-                  }
-                );
+                setIsSaving(true);
+                try {
+                  const res = await fetch(
+                    editingId ? `/api/members/${editingId}` : "/api/members",
+                    {
+                      method: editingId ? "PUT" : "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        name,
+                        countryCode: formData.countryCode,
+                        phone,
+                        plan: formData.plan,
+                        status: formData.status,
+                      }),
+                    }
+                  );
 
-                if (!res.ok) return;
+                  if (!res.ok) return;
 
-                const saved = (await res.json()) as Member;
-                setMembers((prev) =>
-                  editingId
-                    ? prev.map((m) => (m._id === saved._id ? saved : m))
-                    : [...prev, saved]
-                );
-                closeModal();
+                  const saved = (await res.json()) as Member;
+                  setMembers((prev) =>
+                    editingId
+                      ? prev.map((m) => (m._id === saved._id ? saved : m))
+                      : [...prev, saved]
+                  );
+                  closeModal();
+                } finally {
+                  setIsSaving(false);
+                }
               }}
             >
               <div>
@@ -254,13 +348,48 @@ export default function MembersPage() {
                   Name
                 </label>
                 <input
-                  value={formData.name}
+                  value={formData.name || ""}
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, name: e.target.value }))
                   }
                   placeholder="e.g., Rohan Singh"
                   className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-zinc-700 focus:ring-2 focus:ring-zinc-700/40"
                 />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-zinc-200">
+                  Phone
+                </label>
+                <div className="mt-2 flex gap-2">
+                  <select
+                    value={formData.countryCode}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        countryCode: e.target.value,
+                      }))
+                    }
+                    className="w-[30%] rounded-lg border border-zinc-800 bg-zinc-950/60 px-2 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-700 focus:ring-2 focus:ring-zinc-700/40"
+                  >
+                    {COUNTRY_CODES.map((item) => (
+                      <option
+                        key={`${item.country}-${item.code}`}
+                        value={item.code}
+                      >
+                        {item.country} ({item.code})
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={formData.phone || ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                    }
+                    placeholder="10-digit phone number"
+                    className="w-[70%] rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-zinc-700 focus:ring-2 focus:ring-zinc-700/40"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -312,9 +441,15 @@ export default function MembersPage() {
                 </button>
                 <button
                   type="submit"
+                  disabled={isSaving}
                   className="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-emerald-400"
                 >
-                  Save
+                  <span className="inline-flex items-center gap-2">
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : null}
+                    {isSaving ? "Saving..." : "Save"}
+                  </span>
                 </button>
               </div>
             </form>
@@ -355,17 +490,28 @@ export default function MembersPage() {
                     const id = memberToDelete;
                     if (!id) return;
 
-                    const res = await fetch(`/api/members/${id}`, {
-                      method: "DELETE",
-                    });
-                    if (!res.ok) return;
+                    setIsDeleting(true);
+                    try {
+                      const res = await fetch(`/api/members/${id}`, {
+                        method: "DELETE",
+                      });
+                      if (!res.ok) return;
 
-                    setMembers((prev) => prev.filter((m) => m._id !== id));
-                    setMemberToDelete(null);
+                      setMembers((prev) => prev.filter((m) => m._id !== id));
+                      setMemberToDelete(null);
+                    } finally {
+                      setIsDeleting(false);
+                    }
                   }}
+                  disabled={isDeleting}
                   className="rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-red-400"
                 >
-                  Confirm Delete
+                  <span className="inline-flex items-center gap-2">
+                    {isDeleting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : null}
+                    {isDeleting ? "Deleting..." : "Confirm Delete"}
+                  </span>
                 </button>
               </div>
             </div>

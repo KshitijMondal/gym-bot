@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/mongodb";
 import Member from "@/models/Member";
 
@@ -8,12 +9,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> } 
 ) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
     await dbConnect();
     
     // 2. Await the params before using them
     const { id } = await params; 
 
-    const deleted = await Member.findByIdAndDelete(id).lean();
+    const deleted = await Member.findOneAndDelete({ _id: id, userId }).lean();
     if (!deleted) {
       return NextResponse.json({ error: "Member not found." }, { status: 404 });
     }
@@ -34,16 +40,31 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
     await dbConnect();
     
     // 2. Await the params before using them
     const { id } = await params;
     const body = await request.json();
+    const phone = body.phone?.trim();
+    const countryCode = body.countryCode?.trim() || "+91";
 
-    const updated = await Member.findByIdAndUpdate(id, body, {
-      new: true,
-      runValidators: true,
-    }).lean();
+    const updated = await Member.findOneAndUpdate(
+      { _id: id, userId },
+      {
+        ...body,
+        phone,
+        countryCode,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).lean();
 
     if (!updated) {
       return NextResponse.json({ error: "Member not found." }, { status: 404 });
