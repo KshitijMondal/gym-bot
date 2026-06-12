@@ -4,6 +4,7 @@ export type MemberStatus = "Active" | "Expired" | "Pending" | string;
 
 export type MemberDocument = mongoose.Document & {
   userId: string;
+  orgId?: string; // V2.0: The specific Gym/Branch this member belongs to
   name: string;
   countryCode: string;
   phone: string;
@@ -24,6 +25,7 @@ function formatJoinDate(d: Date): string {
 const MemberSchema: Schema<MemberDocument> = new mongoose.Schema<MemberDocument>(
   {
     userId: { type: String, required: true, trim: true },
+    orgId: { type: String, required: false, index: true }, // Indexed for fast multi-tenant queries
     name: { type: String, required: true, trim: true },
     countryCode: { type: String, default: "+91", trim: true },
     phone: { type: String, required: true, trim: true },

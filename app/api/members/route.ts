@@ -5,14 +5,22 @@ import Member from "@/models/Member";
 
 export async function GET() {
   try {
-    const { userId } = await auth();
+    // V2.0: Extract both userId and the active orgId from Clerk
+    const { userId, orgId } = await auth(); 
+    
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
     await dbConnect();
+    
+    // V2.0 B2B Routing Logic:
+    // If they are in an Organization (Gym Branch), only fetch members for THAT specific branch.
+    // If orgId is null (meaning they haven't set up an Org yet), fallback to their personal V1.0 members safely.
+    const query = orgId ? { orgId } : { userId };
+    
     // .lean() strips heavy Mongoose features for faster data transfer
-    const members = await Member.find({ userId }).sort({ createdAt: -1 }).lean();
+    const members = await Member.find(query).sort({ createdAt: -1 }).lean();
     return NextResponse.json(members, { status: 200 });
   } catch (err) {
     console.error("GET /api/members error:", err);
@@ -25,7 +33,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await auth();
+    // V2.0: Extract orgId to securely attach it to the new member record
+    const { userId, orgId } = await auth(); 
+    
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
@@ -47,6 +57,7 @@ export async function POST(request: Request) {
 
     const created = await Member.create({
       userId,
+      orgId, // V2.0: Stamp the new member with the active Organization ID
       name,
       countryCode,
       phone,

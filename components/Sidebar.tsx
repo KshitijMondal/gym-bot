@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, OrganizationSwitcher } from "@clerk/nextjs";
 
 export function Sidebar() {
   return (
@@ -7,19 +7,19 @@ export function Sidebar() {
       {/* Brand */} 
       <div className="border-b border-zinc-800 px-4 py-5">
         <p className="text-sm font-semibold tracking-tight text-white">
-          Gym Management
+          FitDesk
         </p>
-        <p className="mt-0.5 text-xs text-zinc-500">Bot dashboard</p>
+        <p className="mt-0.5 text-xs text-zinc-500">Enterprise OS</p>
       </div>
 
       {/* Nav */} 
       <nav className="flex flex-1 flex-col gap-1 p-3">
-      <Link 
-  href="/" 
-  className="rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
->
-  Dashboard
-</Link>
+        <Link 
+          href="/" 
+          className="rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
+        >
+          Dashboard
+        </Link>
         <Link
           href="/members"
           className="rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
@@ -40,13 +40,28 @@ export function Sidebar() {
         </Link>
       </nav>
 
+      {/* User & Organization Control */}
       <div className="mt-auto border-t border-zinc-800 p-3">
-        <div className="flex items-center justify-center rounded-md px-2 py-2">
+        <div className="flex items-center justify-between rounded-md px-2 py-2">
+          
+          {/* V2.0 Multi-Tenant Switcher */}
+          <OrganizationSwitcher 
+            hidePersonal={true}
+            appearance={{
+              elements: {
+                organizationSwitcherTrigger: "text-zinc-100 hover:bg-zinc-800 px-2 py-1 rounded-md transition-colors",
+                organizationSwitcherTriggerIcon: "text-zinc-400",
+              }
+            }}
+          />
+
+          {/* V1.0 User Profile */}
           <UserButton
             appearance={{
               elements: { userButtonAvatarBox: "w-8 h-8" },
             }}
           />
+          
         </div>
       </div>
     </aside>

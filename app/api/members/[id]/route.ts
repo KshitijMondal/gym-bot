@@ -9,7 +9,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> } 
 ) {
   try {
-    const { userId } = await auth();
+    // V2.0: Extract orgId alongside userId
+    const { userId, orgId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
@@ -19,7 +20,10 @@ export async function DELETE(
     // 2. Await the params before using them
     const { id } = await params; 
 
-    const deleted = await Member.findOneAndDelete({ _id: id, userId }).lean();
+    // V2.0 B2B Security Routing: Target the specific member within the active Organization
+    const query = orgId ? { _id: id, orgId } : { _id: id, userId };
+
+    const deleted = await Member.findOneAndDelete(query).lean();
     if (!deleted) {
       return NextResponse.json({ error: "Member not found." }, { status: 404 });
     }
@@ -40,7 +44,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth();
+    // V2.0: Extract orgId alongside userId
+    const { userId, orgId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
@@ -53,8 +58,11 @@ export async function PUT(
     const phone = body.phone?.trim();
     const countryCode = body.countryCode?.trim() || "+91";
 
+    // V2.0 B2B Security Routing
+    const query = orgId ? { _id: id, orgId } : { _id: id, userId };
+
     const updated = await Member.findOneAndUpdate(
-      { _id: id, userId },
+      query,
       {
         ...body,
         phone,
