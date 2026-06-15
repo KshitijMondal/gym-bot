@@ -50,6 +50,7 @@ export default function MembersPage() {
   ];
 
   const [members, setMembers] = useState<Member[]>([]);
+  const [gymName, setGymName] = useState("Our Gym"); // V2.0 Dynamic Gym Name State
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,18 +84,33 @@ export default function MembersPage() {
     });
   };
 
+  // V2.0: Unified multi-tenant data loader
   useEffect(() => {
     let isMounted = true;
 
     (async () => {
       try {
         setIsLoading(true);
-        const res = await fetch("/api/members", { method: "GET" });
-        if (!res.ok) throw new Error("Failed to fetch members");
+        
+        // Parallel data loading for members and tenant settings
+        const [membersRes, settingsRes] = await Promise.all([
+          fetch("/api/members", { method: "GET" }),
+          fetch("/api/settings", { method: "GET" })
+        ]);
 
-        const data = (await res.json()) as Member[];
-        if (isMounted) setMembers(Array.isArray(data) ? data : []);
-      } catch {
+        if (membersRes.ok) {
+          const data = (await membersRes.json()) as Member[];
+          if (isMounted) setMembers(Array.isArray(data) ? data : []);
+        }
+
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          if (isMounted && settingsData.gymName) {
+            setGymName(settingsData.gymName);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch directory data:", err);
         if (isMounted) setMembers([]);
       } finally {
         if (isMounted) setIsLoading(false);
@@ -185,86 +201,86 @@ export default function MembersPage() {
                   </tr>
                 ) : (
                   filteredMembers.map((m) => {
-                  const statusClass =
-                    m.status === "Active"
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : m.status === "Expired"
-                        ? "bg-red-500/10 text-red-400"
-                        : "bg-yellow-500/10 text-yellow-400";
+                    const statusClass =
+                      m.status === "Active"
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : m.status === "Expired"
+                          ? "bg-red-500/10 text-red-400"
+                          : "bg-yellow-500/10 text-yellow-400";
 
-                  return (
-                    <tr
-                      key={m._id}
-                      className="border-t border-zinc-800 [&>td]:px-4 [&>td]:py-3"
-                    >
-                      <td className="font-medium text-zinc-100">
-                        <div className="flex flex-col">
-                          <span>{m.name}</span>
-                          <span className="mt-0.5 text-xs text-zinc-500">
-                            Joined {m.joinDate}
+                    return (
+                      <tr
+                        key={m._id}
+                        className="border-t border-zinc-800 [&>td]:px-4 [&>td]:py-3"
+                      >
+                        <td className="font-medium text-zinc-100">
+                          <div className="flex flex-col">
+                            <span>{m.name}</span>
+                            <span className="mt-0.5 text-xs text-zinc-500">
+                              Joined {m.joinDate}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="text-zinc-300">{m.countryCode} {m.phone}</td>
+                        <td className="text-zinc-300">{m.plan}</td>
+                        <td>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusClass}`}
+                          >
+                            {m.status}
                           </span>
-                        </div>
-                      </td>
-                      <td className="text-zinc-300">{m.countryCode} {m.phone}</td>
-                      <td className="text-zinc-300">{m.plan}</td>
-                      <td>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusClass}`}
-                        >
-                          {m.status}
-                        </span>
-                      </td>
-                      <td className="text-right">
-                        <div className="inline-flex items-center gap-2">
-                          
-                          {/* NEW WHATSAPP BUTTON */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const message = m.status === "Active" 
-                                ? generateReceiptText("Titan Fitness", m.name, m.plan) 
-                                : generateReminderText("Titan Fitness", m.name);
-                                
-                              sendWhatsAppMessage(`${m.countryCode || "+91"}${m.phone}`, message);
-                            }}
-                            className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/30 hover:bg-emerald-500/20"
-                          >
-                            <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                            WhatsApp
-                          </button>
+                        </td>
+                        <td className="text-right">
+                          <div className="inline-flex items-center gap-2">
+                            
+                            {/* V2.0 MULTI-TENANT DYNAMIC WHATSAPP BUTTON */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const message = m.status === "Active" 
+                                  ? generateReceiptText(gymName, m.name, m.plan) 
+                                  : generateReminderText(gymName, m.name);
+                                  
+                                sendWhatsAppMessage(`${m.countryCode || "+91"}${m.phone}`, message);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/30 hover:bg-emerald-500/20"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                              WhatsApp
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingId(m._id);
-                              setFormData({
-                                name: m.name || "",
-                                countryCode: m.countryCode || "+91",
-                                phone: m.phone || "",
-                                plan: m.plan || "Monthly",
-                                status: (m.status || "Active") as MemberStatus,
-                              });
-                              setIsModalOpen(true);
-                            }}
-                            className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-300 ring-1 ring-inset ring-blue-500/30 hover:bg-blue-500/15"
-                          >
-                            <Edit className="h-3.5 w-3.5" aria-hidden="true" />
-                            Edit
-                          </button>
-                          
-                          <button
-                            type="button"
-                            onClick={() => setMemberToDelete(m._id)}
-                            className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-1 text-xs font-medium text-red-300 ring-1 ring-inset ring-red-500/30 hover:bg-red-500/15"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingId(m._id);
+                                setFormData({
+                                  name: m.name || "",
+                                  countryCode: m.countryCode || "+91",
+                                  phone: m.phone || "",
+                                  plan: m.plan || "Monthly",
+                                  status: (m.status || "Active") as MemberStatus,
+                                });
+                                setIsModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-300 ring-1 ring-inset ring-blue-500/30 hover:bg-blue-500/15"
+                            >
+                              <Edit className="h-3.5 w-3.5" aria-hidden="true" />
+                              Edit
+                            </button>
+                            
+                            <button
+                              type="button"
+                              onClick={() => setMemberToDelete(m._id)}
+                              className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-1 text-xs font-medium text-red-300 ring-1 ring-inset ring-red-500/30 hover:bg-red-500/15"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

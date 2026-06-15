@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Activity, CreditCard, TrendingUp, Users } from "lucide-react";
 
 type MemberStatus = "Active" | "Expired" | "Pending";
-type MemberPlan = "Monthly" | "Quarterly" | "Annual";
 
-type Member = {
+type RecentMember = {
   _id: string;
   name: string;
   plan: string;
@@ -15,10 +14,20 @@ type Member = {
   joinDate: string;
 };
 
-const pricing = { Monthly: 1500, Quarterly: 4000, Annual: 12000 } as const;
+type DashboardStats = {
+  totalMembers: number;
+  activeMembers: number;
+  monthlyRevenue: number;
+  recentActivity: RecentMember[];
+};
 
 export default function Home() {
-  const [members, setMembers] = useState<Member[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalMembers: 0,
+    activeMembers: 0,
+    monthlyRevenue: 0,
+    recentActivity: [],
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -27,13 +36,28 @@ export default function Home() {
     (async () => {
       try {
         setIsLoading(true);
-        const res = await fetch("/api/members", { method: "GET" });
-        if (!res.ok) throw new Error("Failed to fetch members");
+        const res = await fetch("/api/dashboard/stats", { method: "GET" });
+        if (!res.ok) throw new Error("Failed to fetch dashboard statistics");
 
-        const data = (await res.json()) as Member[];
-        if (isMounted) setMembers(Array.isArray(data) ? data : []);
-      } catch {
-        if (isMounted) setMembers([]);
+        const data = (await res.json()) as DashboardStats;
+        if (isMounted) {
+          setStats({
+            totalMembers: data.totalMembers ?? 0,
+            activeMembers: data.activeMembers ?? 0,
+            monthlyRevenue: data.monthlyRevenue ?? 0,
+            recentActivity: Array.isArray(data.recentActivity) ? data.recentActivity : [],
+          });
+        }
+      } catch (err) {
+        console.error("Dashboard stats loader error:", err);
+        if (isMounted) {
+          setStats({
+            totalMembers: 0,
+            activeMembers: 0,
+            monthlyRevenue: 0,
+            recentActivity: [],
+          });
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -50,35 +74,6 @@ export default function Home() {
       currency: "INR",
       maximumFractionDigits: 0,
     }).format(amount);
-
-  const getAmountFromPlan = (plan: string) =>
-    pricing[(plan as MemberPlan) ?? "Monthly"] ?? 0;
-
-  const { totalMembers, activeMembers, monthlyRevenue } = useMemo(() => {
-    return members.reduce(
-      (acc, member) => {
-        if (member.status === "Active") {
-          acc.activeMembers += 1;
-          acc.monthlyRevenue += getAmountFromPlan(member.plan);
-        }
-        return acc;
-      },
-      {
-        totalMembers: members.length,
-        activeMembers: 0,
-        monthlyRevenue: 0,
-      }
-    );
-  }, [members]);
-
-  const recentMembers = useMemo(() => {
-    return [...members]
-      .sort(
-        (a, b) =>
-          new Date(b.joinDate).getTime() - new Date(a.joinDate).getTime()
-      )
-      .slice(0, 5);
-  }, [members]);
 
   const getStatusBadgeClass = (status: MemberStatus) => {
     if (status === "Active") return "bg-emerald-500/10 text-emerald-400";
@@ -100,6 +95,7 @@ export default function Home() {
 
         <div className="p-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {/* Total Members Metric Card */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
               <div className="flex items-center gap-4">
                 <div className="rounded-lg bg-blue-500/10 p-2 text-blue-500">
@@ -110,12 +106,13 @@ export default function Home() {
                     Total Members
                   </p>
                   <p className="mt-1 text-2xl font-semibold text-white">
-                    {isLoading ? "..." : totalMembers}
+                    {isLoading ? "..." : stats.totalMembers}
                   </p>
                 </div>
               </div>
             </div>
 
+            {/* Active Members Metric Card */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
               <div className="flex items-center gap-4">
                 <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-500">
@@ -126,12 +123,13 @@ export default function Home() {
                     Active Members
                   </p>
                   <p className="mt-1 text-2xl font-semibold text-white">
-                    {isLoading ? "..." : activeMembers}
+                    {isLoading ? "..." : stats.activeMembers}
                   </p>
                 </div>
               </div>
             </div>
 
+            {/* Monthly Revenue Metric Card */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
               <div className="flex items-center gap-4">
                 <div className="rounded-lg bg-purple-500/10 p-2 text-purple-500">
@@ -142,13 +140,14 @@ export default function Home() {
                     Monthly Revenue
                   </p>
                   <p className="mt-1 text-2xl font-semibold text-white">
-                    {isLoading ? "..." : formatINR(monthlyRevenue)}
+                    {isLoading ? "..." : formatINR(stats.monthlyRevenue)}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Recent Activity Feed */}
           <section className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/40">
             <div className="border-b border-zinc-800 px-5 py-4">
               <div className="flex items-center gap-2">
@@ -163,11 +162,11 @@ export default function Home() {
             </div>
             <ul className="divide-y divide-zinc-800">
               {isLoading ? (
-                <li className="px-5 py-4 text-sm text-zinc-400">Loading members...</li>
-              ) : recentMembers.length === 0 ? (
-                <li className="px-5 py-4 text-sm text-zinc-400">No recent activity.</li>
+                <li className="px-5 py-4 text-sm text-zinc-400">Loading activity data...</li>
+              ) : stats.recentActivity.length === 0 ? (
+                <li className="px-5 py-4 text-sm text-zinc-400">No recent activity found.</li>
               ) : (
-                recentMembers.map((member) => (
+                stats.recentActivity.map((member) => (
                   <li key={member._id} className="px-5 py-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">

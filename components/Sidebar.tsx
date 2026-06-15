@@ -41,29 +41,36 @@ export function Sidebar() {
       </nav>
 
       {/* User & Organization Control */}
-      <div className="mt-auto border-t border-zinc-800 p-3">
-        <div className="flex items-center justify-between rounded-md px-2 py-2">
-          
-          {/* V2.0 Multi-Tenant Switcher */}
-          <OrganizationSwitcher 
-            hidePersonal={true}
-            appearance={{
-              elements: {
-                organizationSwitcherTrigger: "text-zinc-100 hover:bg-zinc-800 px-2 py-1 rounded-md transition-colors",
-                organizationSwitcherTriggerIcon: "text-zinc-400",
-              }
-            }}
-          />
-
-          {/* V1.0 User Profile */}
-          <UserButton
-            appearance={{
-              elements: { userButtonAvatarBox: "w-8 h-8" },
-            }}
-          />
-          
-        </div>
-      </div>
+      {/* Replace your current bottom sidebar section with this */}
+      <div className="mt-auto border-t border-zinc-800 p-4">
+  <div className="flex items-center justify-between gap-3"> {/* Increased gap slightly */}
+    
+    {/* Organization Container - Has its own hover state */}
+    <div className="flex-1 min-w-0">
+      <OrganizationSwitcher 
+        hidePersonal={false}
+        appearance={{
+          elements: {
+            rootBox: "w-full min-w-0",
+            organizationSwitcherTrigger: "w-full min-w-0 justify-start hover:bg-zinc-900 px-2 py-1.5 rounded-md transition-colors",
+            organizationPreview: "w-full min-w-0 gap-2",
+            organizationPreviewTextContainer: "min-w-0 truncate",
+            organizationPreviewMainIdentifier: "block truncate max-w-[120px] text-zinc-200", 
+            // This completely removes the downward arrow:
+            organizationSwitcherTriggerIcon: "hidden" 
+          }
+        }}
+      />
+    </div>
+    
+    {/* User Profile Container - Has its own hover state (handled by Clerk) */}
+    {/* The pl-3 and border-l act as the clear visual separation wall */}
+    <div className="shrink-0 flex items-center justify-center pl-3 border-l border-zinc-800">
+      <UserButton />
+    </div>
+    
+  </div>
+</div>
     </aside>
   );
 }
