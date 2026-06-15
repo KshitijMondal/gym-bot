@@ -13,13 +13,11 @@ import Settings from "@/models/Settings";
 // GET: Fetch the current branch's settings
 export async function GET() {
   try {
-    // V2.0: Extract both userId and orgId
     const { userId, orgId } = await auth();
     if (!userId) return new NextResponse("Unauthorized", { status: 401 });
 
     await connectDB();
     
-    // V2.0 B2B Routing
     const query = orgId ? { orgId } : { userId, orgId: null };
     
     const settings = await Settings.findOne(query);
@@ -32,20 +30,24 @@ export async function GET() {
 // POST: Save or Update the branch's settings
 export async function POST(req: Request) {
   try {
-    // V2.0: Extract both userId and orgId
-    const { userId, orgId } = await auth();
+    // V2.0: Extract role alongside IDs
+    const { userId, orgId, orgRole } = await auth();
+    
     if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+
+    // V2.0 RBAC: Block non-admins from altering gym settings
+    if (orgId && orgRole !== "org:admin") {
+      return new NextResponse("Forbidden: Admins Only", { status: 403 });
+    }
 
     const body = await req.json();
     await connectDB();
 
-    // V2.0 B2B Routing
     const query = orgId ? { orgId } : { userId, orgId: null };
 
-    // Upsert: Update the specific gym branch settings, or create them.
     const settings = await Settings.findOneAndUpdate(
       query,
-      { ...body, userId, orgId }, // Ensure orgId is permanently stamped
+      { ...body, userId, orgId }, 
       { new: true, upsert: true }
     );
 

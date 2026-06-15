@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { AlertTriangle, Edit, Plus, Search, Trash2, X, MessageCircle, Loader2 } from "lucide-react";
 import { sendWhatsAppMessage, generateReceiptText, generateReminderText } from "@/lib/whatsapp";
+import { useAuth } from "@clerk/nextjs";
 
 export default function MembersPage() {
   type MemberStatus = "Active" | "Expired" | "Pending";
@@ -49,8 +50,11 @@ export default function MembersPage() {
     { code: "+1", country: "US" },
   ];
 
+  const { orgRole } = useAuth();
+  const isAdmin = orgRole === "org:admin" || !orgRole;
+
   const [members, setMembers] = useState<Member[]>([]);
-  const [gymName, setGymName] = useState("Our Gym"); // V2.0 Dynamic Gym Name State
+  const [gymName, setGymName] = useState("Our Gym"); 
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,7 +88,6 @@ export default function MembersPage() {
     });
   };
 
-  // V2.0: Unified multi-tenant data loader
   useEffect(() => {
     let isMounted = true;
 
@@ -92,7 +95,6 @@ export default function MembersPage() {
       try {
         setIsLoading(true);
         
-        // Parallel data loading for members and tenant settings
         const [membersRes, settingsRes] = await Promise.all([
           fetch("/api/members", { method: "GET" }),
           fetch("/api/settings", { method: "GET" })
@@ -130,7 +132,6 @@ export default function MembersPage() {
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
       <Sidebar />
 
-      {/* Main workspace */}
       <main className="min-w-0 flex-1 overflow-auto">
         <header className="border-b border-zinc-800 bg-zinc-950/80 px-6 py-4 backdrop-blur-sm">
           <h1 className="text-lg font-semibold text-white">
@@ -142,7 +143,6 @@ export default function MembersPage() {
         </header>
 
         <div className="p-6">
-          {/* Search */}
           <div className="mb-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative w-full max-w-md">
@@ -233,7 +233,6 @@ export default function MembersPage() {
                         <td className="text-right">
                           <div className="inline-flex items-center gap-2">
                             
-                            {/* V2.0 MULTI-TENANT DYNAMIC WHATSAPP BUTTON */}
                             <button
                               type="button"
                               onClick={() => {
@@ -268,14 +267,17 @@ export default function MembersPage() {
                               Edit
                             </button>
                             
-                            <button
-                              type="button"
-                              onClick={() => setMemberToDelete(m._id)}
-                              className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-1 text-xs font-medium text-red-300 ring-1 ring-inset ring-red-500/30 hover:bg-red-500/15"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                              Delete
-                            </button>
+                            {/* V2.0 RBAC: Hide Delete from Staff */}
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => setMemberToDelete(m._id)}
+                                className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-1 text-xs font-medium text-red-300 ring-1 ring-inset ring-red-500/30 hover:bg-red-500/15"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                Delete
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
