@@ -2,9 +2,11 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 // Define public paths that bypass auth completely
+// Define public paths that bypass auth completely
 const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/api/webhooks(.*)" // <-- Add this line to let Svix through!
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
