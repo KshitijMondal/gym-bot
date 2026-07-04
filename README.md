@@ -1,6 +1,6 @@
 # ⚡ FitDesk: The Modern Fitness Facility OS
 
-**Live Application:** [usefitdesk.vercel.app](https://gusefitdesk.vercel.app/)
+**Live Application:** [usefitdesk.vercel.app](https://usefitdesk.vercel.app/)
 
 ## 🎯 The Vision
 Managing a fitness center shouldn't require navigating complex, outdated software or chaotic spreadsheets. FitDesk is built to be the central nervous system for modern gyms. It is a sleek, zero-friction B2B SaaS platform designed specifically for facility owners and front-desk staff to manage members, track payments, and automate client communications effortlessly. 
